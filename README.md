@@ -6,7 +6,7 @@ I removed wifi capability, since that's now something I needed, although it coul
 
 All interesting things are containted in user/user_main.c, if you want to use more than one dancepads at the same time, it could be easier to change the codes array in that file, it should be also pretty easy to add more buttons, with some additional work add the multiplexing feature to increase the number of buttons beyond 8.
 
-![Hardpad](hardpad.jpg)
+![Dancepad](dancepad.jpg)
 
 # Quickstart with Docker
 
