@@ -87,24 +87,40 @@ extern int keymod;
 extern int keypress;
 
 
+uint8_t masks = 0;
+bool rel = false;
+
+uint8_t codes[5][4] = {{0x60, 0x5a, 0x5c, 0x5e}, {0x1a, 0x16, 0x04, 0x07}, {0x52, 0x51, 0x50, 0x4f}, {0x0c, 0x0e, 0x0d, 0x0f}, {0x17, 0x0a, 0x09, 0x0b}};
+
+uint8_t profile = 0;
+
 static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
 {
 	struct usb_internal_state_struct * uis = &usb_internal_state;
 	struct usb_endpoint * e2 = &uis->eps[2];
-
+	if(!GPIO_INPUT_GET( GPIO_ID_PIN(12)))
+		masks |= (1<<0);
+	if(!GPIO_INPUT_GET( GPIO_ID_PIN(13)))
+		masks |= (1<<1);
+	if(!GPIO_INPUT_GET( GPIO_ID_PIN(14)))
+		masks |= (1<<2);
+	if(!GPIO_INPUT_GET( GPIO_ID_PIN(3)))
+		masks |= (1<<3);
 	e2->ptr_in = my_ep2;
 	e2->place_in = 0;
 	e2->size_in = sizeof( my_ep2 );
-	if( keypress && e2->send == 0 )
+	if( (masks || !rel) && e2->send == 0 )
 	{
-		my_ep2[0] = keymod;
-		my_ep2[2] = keybt;
+		my_ep2[0] = 0;
+		my_ep2[2] = masks & (1<<0)?codes[profile][0]:0;
+		my_ep2[3] = masks & (1<<1)?codes[profile][1]:0;
+		my_ep2[4] = masks & (1<<2)?codes[profile][2]:0;
+		my_ep2[5] = masks & (1<<3)?codes[profile][3]:0;
 		e2->send = 1;
-		keypress = 0;
+		rel = !masks;
+		masks = 0;
+		
 	}
-
-	CSTick( 0 );
-
 	if( user_control_length_acc )
 	{
 		//printf( "\nGot: %s\n", usb_internal_state.user_control );
@@ -122,39 +138,14 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
 //Timer event.
 static void ICACHE_FLASH_ATTR myTimer(void *arg)
 {
-#if 0
-	struct usb_internal_state_struct * uis = &usb_internal_state;
-	struct usb_endpoint * e1 = &uis->eps[1];
-	struct usb_endpoint * e2 = &uis->eps[2];
-
-	int i;
-
-	//Send mouse and keyboard commands
-	//my_ep1[0] ^= _BV(1);  // _BV(x)  ((1<<(x))
-//	my_ep1[1] = 1; //X offset
-//	my_ep1[2] = 1; //Y offset
-	//[0] == Button Bitmask ( _BV(0) == the Left button )
-	//[1] == The X offset
-	//[2] == The Y offset
-	//[3] == ?
-
-
-//	my_ep2[2] ^= 8;  //Keyboard
-
-	printf( "%d\n", e1->send );
-	
-	e1->ptr_in = my_ep1;
-	e1->place_in = 0;
-	e1->size_in = sizeof( my_ep1 );
-	e1->send = 1;
-
-	e2->ptr_in = my_ep2;
-	e2->place_in = 0;
-	e2->size_in = sizeof( my_ep2 );
-	e2->send = 1;
-#endif
-
-	CSTick( 1 );
+		if(!GPIO_INPUT_GET( GPIO_ID_PIN(12)))
+			profile = 1;
+		else if(!GPIO_INPUT_GET( GPIO_ID_PIN(13)))
+			profile = 2;
+		else if(!GPIO_INPUT_GET( GPIO_ID_PIN(14)))
+			profile = 3;
+		else if(!GPIO_INPUT_GET( GPIO_ID_PIN(3)))
+			profile = 4;
 }
 
 
@@ -236,13 +227,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 //Uncomment this to force a system restore.
 //	system_restore();
 
-	CSSettingsLoad( 0 );
-	CSPreInit();
-
-	//Create additional socket, etc. here.
-
-	CSInit();
-
 	//Set GPIO16 for INput
 	WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
 		(READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)0x1);     // mux configuration for XPD_DCDC and rtc_gpio0 connection
@@ -253,11 +237,21 @@ void ICACHE_FLASH_ATTR user_init(void)
 	WRITE_PERI_REG(RTC_GPIO_ENABLE,
 		READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);       //out disable
 
-	SetServiceName( "espusb" );
-	AddMDNSName( "esp82xx" );
-	AddMDNSName( "espusb" );
-	AddMDNSService( "_http._tcp", "An ESP8266 Webserver", 80 );
-	AddMDNSService( "_esp82xx._udp", "ESP8266 Backend", 7878 );
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
+
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(12));
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(13));
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(14));
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(3));
+
+	SET_PERI_REG_MASK(PERIPHS_IO_MUX_MTDI_U, PERIPHS_IO_MUX_PULLUP);
+	SET_PERI_REG_MASK(PERIPHS_IO_MUX_MTCK_U, PERIPHS_IO_MUX_PULLUP);
+	SET_PERI_REG_MASK(PERIPHS_IO_MUX_MTMS_U, PERIPHS_IO_MUX_PULLUP);
+	SET_PERI_REG_MASK(PERIPHS_IO_MUX_U0RXD_U, PERIPHS_IO_MUX_PULLUP);
+	
 
 	//Add a process
 	system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
@@ -265,14 +259,17 @@ void ICACHE_FLASH_ATTR user_init(void)
 	//Timer example
 	os_timer_disarm(&some_timer);
 	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
-	os_timer_arm(&some_timer, SLOWTICK_MS, 1);
+	os_timer_arm(&some_timer, 100, 0);
 
 	printf( "Boot Ok.\n" );
 
 	usb_init();
- 
-	wifi_set_sleep_type(LIGHT_SLEEP_T);
-	wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
+	
+	
+	wifi_set_opmode(NULL_MODE);
+	//wifi_init();
+	//wifi_set_sleep_type(LIGHT_SLEEP_T);
+	//wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
 
 	system_os_post(procTaskPrio, 0, 0 );
 }

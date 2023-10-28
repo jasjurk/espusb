@@ -1,3 +1,39 @@
+# ESP8266 USB Stepmania Dancepad
+
+This project is adapted from an old project that allows you quite a number of features with just ESP8266EX, which now could be bought for about $1. Unfortunatelly, it uses very antiquated version of the Espressif API, which makes it harder to maintain and change. 
+
+I removed wifi capability, since that's now something I needed, although it could be used to make the Dancepad wireless, but then the USB capability is redundant. 
+
+All interesting things are containted in user/user_main.c, if you want to use more than one dancepads at the same time, it could be easier to change the codes array in that file, it should be also pretty easy to add more buttons, with some additional work add the multiplexing feature to increase the number of buttons beyond 8.
+
+![Hardpad](hardpad.jpg)
+
+# Quickstart with Docker
+
+See https://github.com/T-vK/docker-esp-sdk
+and https://www.youtube.com/watch?v=ntm1iTQdCzE
+
+but TLDR
+
+    ``` bash
+    	sudo apt-get install libtool-bin libusb-1.0.0-dev
+    	git clone --recursive https://github.com/jasjurk/espusb
+	sudo docker pull tavk/esp-sdk:0.1.0
+	sudo docker run -t -i -u esp --device=/dev/ttyUSB0 -v /home/$USER$/espusb:/	home/esp/shared_project -e SDK_VERSION='1.5.3' tavk/esp-sdk:0.1.0 make ESP_ROOT=/home/esp/esp-open-sdk burn
+    ```
+
+Remember to put your user in $USER$ in commands!
+
+This should flash your ESP8266 with the required code. 
+
+Next, add resistor > 1kom between Vcc and GPIO4, solder Vin(or add your own voltage regulation, but remember that USB gives 5V and ESP8266 needs 3.3V or it burns!!!) to USB connector pin 1, GPIO4 to pin 2, GPIO 5 to pin 3 and GND to pin4.
+
+Next, solder one end of every button to GND, and the other end to GPIO12, GPIO13, GPIO14 and RDX0 respectivelly. 
+
+Unfortunatelly doesn't work on linux systems, probably something about unnecessary USB descriptors, but couldn't be bothered to clean that up right now.
+
+The rest of documentation is from the original project, although it's very helpfull.
+
 # ESP8266 USB Software Driver
 
 I wanted to have USB on the ESP8266, and a while ago I saw on the ESP32 flier, it read: "Rich Peripherals" ... "Sorry, no USB!" I thought to myself, that is ridiculous.  Of course there's USB.

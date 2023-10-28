@@ -182,8 +182,8 @@ static const uint8_t keyboard_hid_desc[63] = {   /* USB report descriptor */
 //Ever wonder how you have more than 6 keys down at the same time on a USB keyboard?  It's easy. Enumerate two keyboards!
 
 
-#define STR_MANUFACTURER L"CNLohr"
-#define STR_PRODUCT      L"ESPUSB2"
+#define STR_MANUFACTURER L"Apollyon"
+#define STR_PRODUCT      L"Stepmania Hardpad"
 #define STR_SERIAL       L"000"
 
 struct usb_string_descriptor_struct {
